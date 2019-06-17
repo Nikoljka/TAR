@@ -1,0 +1,199 @@
+#define data 0
+#define latch 1
+#define clock 2
+
+int z = 0;
+int sec = 0;
+int min = 0;
+int hour = 11;
+int hourPip = 11;
+int hourPip2 = 0;
+bool hourBoolPip = true;
+bool timeHour = false;
+
+int p=5;
+
+char mikTick[] = {0b10000000,0b01000000,0b00100000,0b00010000,
+               0b00001000,0b00000100,0b00000010,0b00000001,0b00000000,0b00000000};
+
+
+int pins[2][6] = {{13,12,11,10,9,8},
+           {6,5}};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  void setup(){//объевляем все это добро
+    pinMode(clock, OUTPUT);
+    pinMode(data, OUTPUT);
+    pinMode(latch, OUTPUT);
+    digitalWrite(latch, HIGH);
+    pinMode(pins[1][0], OUTPUT);
+    pinMode(pins[1][1], OUTPUT);   
+    for (int d = 0; d < 6; d++) {
+      pinMode(pins[0][d], INPUT);
+  }  
+  }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  void loop(){
+  for (int c = 0; c < 248; c++){//цикл на 1 секунду
+      /*tickSecMin(sec,z);
+      tickSecMin(min,z);
+    tickHour(hour,z);*/
+      tickSecMin(sec,z);
+      tickSecMin(min,z);
+      tickHour(hour,z);
+      z++;//штука для быстрого обновления земли(GND) ардуино
+      if(z==6){
+        z=0;
+      }
+    
+    } /*
+   if (digitalRead(4)==HIGH){
+        sec=sec+1;
+      }
+      if (digitalRead(5)==HIGH){
+        min=min+1;
+      }  */
+    int buttonState = digitalRead(4);
+    if (buttonState){
+        min=min+1;
+      }
+    int buttonState1 = digitalRead(7);
+    if (buttonState1){
+        hour=hour+1;
+        hourPip=hourPip+1;
+      }
+ 
+    delay(10);//delay для выравнив. задержки (срабатывает через кажд. секунду)
+    if(hourBoolPip==true)
+    {
+      if(hourPip==5 || hourPip==8 || hourPip==11 || hourPip==14 || hourPip==17 || hourPip==20)
+      {
+        if(hourPip2!=3)
+        {
+          if(sec%2==0)
+          {
+          tone (p, 400);
+          }
+          if(sec%2==1)
+          {
+          noTone(p); //включаем на 1000 Гц
+          hourPip2++;
+          }   
+        }
+        else
+        {
+        hourPip2=0;
+        hourBoolPip=false;
+        } 
+      }
+    }
+    sec++;//счетчик каждой секунды от 0-ля до 9-ти (10 сек)
+    if(sec==60){
+      sec=0;        
+      min++;//счетчик каждой минуты от 0-ля до 9-ти (10 мин)
+      if(min==60){ 
+        min=0;        
+        hour++;//счетчик часов до 12-ти
+        hourPip++;
+        hourBoolPip=true;
+        if(hour==12){
+          hour=0;        
+        }
+        if(hourPip==24){
+          hourPip=0;        
+        }
+      }
+    }
+  }   
+
+/*tone (p, 400); //включаем на 500 Гц
+
+delay(50); //ждем 100 Мс
+
+noTone(p); //включаем на 1000 Гц
+
+delay(50); //ждем 100 Мс
+*/
+  
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void tickSecMin(int SecMin, int z){//60 сек (микро + не микро)
+    //8 сек (микро)
+    digitalWrite(latch, LOW);
+    if(z==0){//штука которая срабатывает 1 раз из 6-ти для включения светодиода
+      shiftOut(data, clock, LSBFIRST, mikTick[SecMin%10]);  //включает из списка micro нужные пины на микро в завис. от текущей секунды 
+    }
+    else
+    {
+      shiftOut(data, clock, LSBFIRST, mikTick[9]);//включает 10-ый micro из списка
+    }  
+    digitalWrite(latch, HIGH);//штука которая включает само микро(обновляет её пину)
+    digitalWrite(pins[0][z+SecMin/10], HIGH);//штука которая открывет землю
+    if(z==0){//штука которая срабатывает 1 раз из 6-ти для включения светодиода
+      delay(5); //задержка чтобы было видно саму лампочку
+    }
+    if((SecMin%10 == 8 || SecMin%10 == 9) && z==0){//2 сек (не микро)
+      digitalWrite(pins[1][SecMin%10-8], HIGH);//включает лампочки на 8-ом и 9-ом пине
+      delay(5);//задержка чтобы было видно саму лампочку
+      digitalWrite(pins[1][SecMin%10-8], LOW);//выключает лампочки на 8-ом и 9-ом пине
+    }
+    digitalWrite(pins[0][z+SecMin/10], LOW);//штука которая закрывает землю
+  }
+
+//**********//
+/*
+  void tickSecMinHour(int SecMinHour, int z, bool timeHour){//60 сек (микро + не микро)
+    if(timeHour==true){
+      int time1=SecMinHour/2;
+      int time2=SecMinHour%2;
+    }
+    else{
+      int time1=SecMinHour/10;
+      int time2=SecMinHour%10;        
+    }
+    //8 сек (микро)
+    digitalWrite(latch, LOW);
+    if(z==0){//штука которая срабатывает 1 раз из 6-ти для включения светодиода
+      shiftOut(data, clock, LSBFIRST, mikTick[time2]);  //включает из списка micro нужные пины на микро в завис. от текущей секунды 
+    }
+    else
+    {
+      shiftOut(data, clock, LSBFIRST, mikTick[9]);//включает 10-ый micro из списка
+    }  
+    digitalWrite(latch, HIGH);//штука которая включает само микро(обновляет её пину)
+    digitalWrite(pins[0][z+time1], HIGH);//штука которая открывет землю
+    if(z==0){//штука которая срабатывает 1 раз из 6-ти для включения светодиода
+      delay(5); //задержка чтобы было видно саму лампочку
+    }
+    if((time2 == 8 || time2 == 9) && z==0){//2 сек (не микро)
+      digitalWrite(pins[1][time2-8], HIGH);//включает лампочки на 8-ом и 9-ом пине
+      delay(5);//задержка чтобы было видно саму лампочку
+      digitalWrite(pins[1][time2-8], LOW);//выключает лампочки на 8-ом и 9-ом пине
+    }
+    digitalWrite(pins[0][z+time1], LOW);//штука которая закрывает землю
+  }
+*/
+
+
+  void tickHour(int hour, int z){//60 сек (микро + не микро)
+    //8 сек (микро)
+    digitalWrite(latch, LOW);
+    if(hour%2 == 0  &&  z==0){//штука которая срабатывает 1 раз из 6-ти для включения светодиода
+      shiftOut(data, clock, LSBFIRST, 0b00001000);//включает из списка micro нужные пины на микро в завис. от текущей секунды
+    }
+    else
+    {
+      shiftOut(data, clock, LSBFIRST, mikTick[9]);//выбирает 10-ый 
+    }  
+    digitalWrite(latch, HIGH);//штука которая включает само микро(обновляет её пину)
+    digitalWrite(pins[0][z+hour/2], HIGH);//штука которая открывет землю
+    if(z==0){//штука которая срабатывает 1 раз из 6-ти для включения светодиода
+      delay(5);//задержка чтобы было видно саму лампочку
+    }
+    if(hour%2 == 1  && z==0){//2 сек (не микро)
+      digitalWrite(pins[1][1], HIGH);//включает лампочки на 8-ом и 9-ом пине
+      delay(5);//задержка чтобы было видно саму лампочку
+      digitalWrite(pins[1][1], LOW);//выключает лампочки на 8-ом и 9-ом пине
+    }
+    digitalWrite(pins[0][z+hour/2], LOW);//штука которая закрывает землю
+  }
